@@ -40,3 +40,6 @@ dummy_jcls/
 # OS specific
 .DS_Store
 Thumbs.db
+
+# Runtime
+.langchain.db
