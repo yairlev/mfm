@@ -55,8 +55,8 @@ def _get_llms(model_names: List[str]) -> List[BaseChatModel]:
 
 def parse_jcl_programs_and_procs(jcl_content: str) -> Dict[str, List[str]]:
     """
-    Parses JCL content using an LLM to identify programs and procedures.
-    Returns a dictionary with 'programs' and 'procs' keys, each holding a list of strings.
+    Parses JCL content using an LLM to identify external programs and procedures.
+    Returns a dictionary with 'programs' and 'procs' keys, each holding a list of program/procedure names.
     """
     prompt = ChatPromptTemplate.from_messages(
         [
