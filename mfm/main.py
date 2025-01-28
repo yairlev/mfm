@@ -143,6 +143,7 @@ def categorize_jcl_summaries_with_llm(jcl_summaries: Dict[str,str], models: List
 class RunnableConsortium(Runnable):
     """
     A runnable that executes the same prompt across multiple LLMs and uses an arbiter to select the best response.
+    The arbiter evaluates responses from all models and synthesizes a final response based on consensus.
     """
     prompt: ChatPromptTemplate
     llms: List[BaseChatModel]
@@ -365,8 +366,6 @@ def create_dummy_zip():
 
 
 if __name__ == "__main__":
-    #zip_file_path = "jcl_files.zip"
-    #create_dummy_zip()
-    zip_file_path = "/Users/yairlevinson/Downloads/aws-mainframe-modernization-carddemo.zip"
+    zip_file_path = "<path/to/zip/file>"
     categories = analyze_jcl_zip(zip_file_path, ["gemini-2.0-flash-exp", "gemini-1.5-flash-002"], "gemini-2.0-flash-exp")
     print("JCL Categories:", categories)
