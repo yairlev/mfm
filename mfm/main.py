@@ -230,7 +230,7 @@ def _read_file_from_zip(zip_ref: zipfile.ZipFile, file_info: zipfile.ZipInfo) ->
         return f.read().decode("utf-8", errors="replace")
 
 # --- Define Graph Nodes ---
-def extract_mainframe_assets_from_zip(state) -> Dict[str, Dict[str, str]]:
+def extract_mainframe_assets_from_zip(state: GraphState):
     """
     Extracts JCL, COBOL, Copybook, and PROC file contents from a ZIP.
     
@@ -250,7 +250,7 @@ def extract_mainframe_assets_from_zip(state) -> Dict[str, Dict[str, str]]:
     copybooks_dict= {}
     procs_dict    = {}
 
-    zip_path = state.get('zip_path')
+    zip_path = state.zip_path
     try:
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
             for file_info in zip_ref.infolist():
@@ -291,14 +291,14 @@ def extract_mainframe_assets_from_zip(state) -> Dict[str, Dict[str, str]]:
     except zipfile.BadZipFile:
         raise ValueError(f"Invalid zip file: {zip_path}")
 
-def process_jcl_files(state):
+def process_jcl_files(state: GraphState):
     summaries = {}
     for jcl_file_name, jcl_content in state["jcls"].items():
         try:
             assets = parse_jcl_programs_and_procs(jcl_content)
             referenced_programs = assets.get("programs",[])
             referenced_procs = assets.get("procs",[])
-            summary = summarize_jcl_with_llm(jcl_content, referenced_programs, referenced_procs, state["cobols"], state["procs"])
+            summary = summarize_jcl_with_llm(jcl_content, referenced_programs, referenced_procs, state.cobols, state.procs)
             summaries[jcl_file_name] = summary
         except Exception as e:
             print(f"Error processing JCL file {jcl_file_name}: {e}")
@@ -306,7 +306,7 @@ def process_jcl_files(state):
     return {"jcl_summaries": summaries}
 
 def categorize_jcl_files(state: GraphState, config: RunnableConfig):
-    categories = categorize_jcl_summaries_with_llm(state["jcl_summaries"], config["configurable"].get("models"), config["configurable"].get("arbiter"))
+    categories = categorize_jcl_summaries_with_llm(state.jcl_summaries, config["configurable"].get("models"), config["configurable"].get("arbiter"))
     return {"jcl_categories": categories}
 
 
