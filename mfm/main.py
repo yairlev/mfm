@@ -6,7 +6,6 @@ from langchain_core.output_parsers.json import JsonOutputParser
 from langchain_core.output_parsers.string import StrOutputParser
 from langgraph.graph import StateGraph, END
 from typing import List, Dict, TypedDict, Any
-from langchain.schema import AIMessage, HumanMessage
 from langchain.globals import set_debug
 from langchain_core.globals import set_llm_cache
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -14,9 +13,6 @@ from langchain_community.cache import SQLiteCache
 from phoenix.otel import register
 from openinference.instrumentation.langchain import LangChainInstrumentor
 from langchain.schema.runnable import RunnableParallel, Runnable
-
-# Configure OpenAI API Key (load from environment variable)
-import os
 from dotenv import load_dotenv
 load_dotenv()
 
