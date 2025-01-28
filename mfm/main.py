@@ -5,7 +5,7 @@ from langchain.prompts import ChatPromptTemplate
 from langchain_core.output_parsers.json import JsonOutputParser
 from langchain_core.output_parsers.string import StrOutputParser
 from langgraph.graph import StateGraph, END
-from typing import List, Dict, TypedDict, Any
+from typing import List, Dict, TypedDict, Any, Optional
 from langchain.globals import set_debug
 from langchain_core.globals import set_llm_cache
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -14,6 +14,7 @@ from phoenix.otel import register
 from openinference.instrumentation.langchain import LangChainInstrumentor
 from langchain.schema.runnable import RunnableParallel, Runnable
 from dotenv import load_dotenv
+from langgraph.graph.state import RunnableConfig
 load_dotenv()
 
 set_debug(False)
@@ -98,7 +99,7 @@ def summarize_jcl_with_llm(jcl_content: str, referenced_program_names: List[str]
       print(f"Error summarizing JCL: {e}")
       return f"Error summarizing JCL job. Content: {jcl_content}"
 
-def categorize_jcl_summaries_with_llm(jcl_summaries: Dict[str,str], models: List[str], arbiter: str) -> Dict[str, Dict[str, str]]:
+def categorize_jcl_summaries_with_llm(jcl_summaries: Dict[str,str], models: List[str], arbiter: Optional[str]) -> Dict[str, Dict[str, str]]:
   """Categorize a list of JCL summaries using an LLM"""
   prompt = ChatPromptTemplate.from_messages(
         [
@@ -304,13 +305,17 @@ def process_jcl_files(state):
             summaries[jcl_file_name] = f"Error processing JCL file: {e}"
     return {"jcl_summaries": summaries}
 
-def categorize_jcl_files(state):
-    categories = categorize_jcl_summaries_with_llm(state["jcl_summaries"], state["models"], state["arbiter"])
+def categorize_jcl_files(state: GraphState, config: RunnableConfig):
+    categories = categorize_jcl_summaries_with_llm(state["jcl_summaries"], config["configurable"].get("models"), config["configurable"].get("arbiter"))
     return {"jcl_categories": categories}
 
 
+class ConfigSchema(TypedDict):
+    models: List[str]
+    arbiter: Optional[str]
+
 # --- Build the Graph ---
-workflow = StateGraph(GraphState)
+workflow = StateGraph(GraphState, ConfigSchema)
 workflow.add_node("extract_assets", extract_mainframe_assets_from_zip)
 workflow.add_node("process_jcl", process_jcl_files)
 workflow.add_node("categorize_jcl", categorize_jcl_files)
@@ -324,10 +329,11 @@ workflow.set_entry_point("extract_assets")
 # --- Run the Graph ---
 chain = workflow.compile()
 
-def analyze_jcl_zip(zip_file_path: str, models: List[str], arbiter: str):
-    initial_state = {"zip_path": zip_file_path, "models": models, "arbiter": arbiter, "jcls": {}, "cobols": {}, "procs": {}, "copybooks": {}, "jcl_summaries": {}, "jcl_categories": [], "temp": {}}
+def analyze_jcl_zip(zip_file_path: str, models: List[str], arbiter: Optional[str]):
+    initial_state = {"zip_path": zip_file_path, "jcls": {}, "cobols": {}, "procs": {}, "copybooks": {}, "jcl_summaries": {}, "jcl_categories": [], "temp": {}}
+    config = {"configurable": {"models": models, "arbiter": arbiter}}
     try:
-      result = chain.invoke(initial_state)
+      result = chain.invoke(initial_state, config)
       return result["jcl_categories"]
     except Exception as e:
       print(f"An error occured: {e}")
@@ -362,6 +368,6 @@ def create_dummy_zip():
 
 
 if __name__ == "__main__":
-    zip_file_path = "<path/to/zip/file>"
+    zip_file_path = "path/to/zip/file"
     categories = analyze_jcl_zip(zip_file_path, ["gemini-2.0-flash-exp", "gemini-1.5-flash-002"], "gemini-2.0-flash-exp")
     print("JCL Categories:", categories)
