@@ -15,6 +15,7 @@ from openinference.instrumentation.langchain import LangChainInstrumentor
 from langchain.schema.runnable import RunnableParallel, Runnable
 from dotenv import load_dotenv
 from langgraph.graph.state import RunnableConfig
+from dataclasses import dataclass
 load_dotenv()
 
 set_debug(False)
@@ -33,7 +34,8 @@ PROJECT=os.getenv("VERTEX_PROJECT")
 PROJECT_LOCATION=os.getenv("VERTEX_PROJECT_LOCATION", "us-central1")
 
 # --- Define the State of the Graph ---
-class GraphState(TypedDict):
+@dataclass(kw_only=True)
+class GraphState:
     zip_path: str
     jcl_summaries: Dict[str, str]
     jcl_categories: List[str]
@@ -41,8 +43,6 @@ class GraphState(TypedDict):
     cobols: Dict[str, str]
     procs: Dict[str, str]
     copybooks: Dict[str, str]
-    models: List[str]
-    arbiter: str
 
 def _get_llm(model_name: str) -> BaseChatModel:
     return ChatVertexAI(model_name=model_name, project=PROJECT, location=PROJECT_LOCATION, temperature=0) #Lower temperature for more consistent results
@@ -185,7 +185,7 @@ After your thought process, provide your synthesized output using the following 
 {{
   "final_response": "Your synthesized output here",
   "thought_process": "Your thought process here",
-  "confidence": "Your confidence level here (e.g., 'High', 'Medium', 'Low')",
+  "confidence": "Your confidence in this synthesis, expressed as a decimal between 0 and 1. For example, 0.85 would indicate 85% confidence",
   "dissenting_views": "Any important dissenting views here",
   "recommendations": "Any recommendations for refinement areas here"
 }}
@@ -293,7 +293,7 @@ def extract_mainframe_assets_from_zip(state: GraphState):
 
 def process_jcl_files(state: GraphState):
     summaries = {}
-    for jcl_file_name, jcl_content in state["jcls"].items():
+    for jcl_file_name, jcl_content in state.jcls.items():
         try:
             assets = parse_jcl_programs_and_procs(jcl_content)
             referenced_programs = assets.get("programs",[])
@@ -330,7 +330,7 @@ workflow.set_entry_point("extract_assets")
 chain = workflow.compile()
 
 def analyze_jcl_zip(zip_file_path: str, models: List[str], arbiter: Optional[str]):
-    initial_state = {"zip_path": zip_file_path, "jcls": {}, "cobols": {}, "procs": {}, "copybooks": {}, "jcl_summaries": {}, "jcl_categories": [], "temp": {}}
+    initial_state = GraphState(zip_path=zip_file_path, jcls={}, cobols={}, procs={}, copybooks={}, jcl_summaries={}, jcl_categories=[]) 
     config = {"configurable": {"models": models, "arbiter": arbiter}}
     try:
       result = chain.invoke(initial_state, config)
@@ -368,6 +368,6 @@ def create_dummy_zip():
 
 
 if __name__ == "__main__":
-    zip_file_path = "path/to/zip/file"
+    zip_file_path = os.getenv("ZIP_FILE_PATH")
     categories = analyze_jcl_zip(zip_file_path, ["gemini-2.0-flash-exp", "gemini-1.5-flash-002"], "gemini-2.0-flash-exp")
     print("JCL Categories:", categories)
